@@ -95,8 +95,14 @@ var spotifyActions = {
     spotify.get(queryURL, function(error, data) {
       if(error){
         console.log(error);
-      } else {
+      } 
+      else {
         var resultsArr = data.tracks.items;
+        // if no results 
+        if (resultsArr.length === 0) {
+          console.log('Sorry, Spotify doesn\'t have any results for ' + color.redBright(spotifyActions.songName) + '!\n');
+          return;
+        }
         spotifyActions.whichArtist(resultsArr);
       }
     });
@@ -160,13 +166,14 @@ var spotifyActions = {
     console.log(color.bgMagenta("Preview Url"));
     console.log(color.magenta(previewURL) + '\n');
   }
-
-
-
 };
 
 
 
 //SPOTIFY todos: 
-// handle spaces in song name 
 // add 'other' option where user can type in an alternate artist which will be added to the query
+
+//general todos: 
+// movie section
+// do what it says sectino 
+// once done with a query, recall the initial prompt functions so user can do something else 
