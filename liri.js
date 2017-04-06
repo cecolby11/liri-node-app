@@ -5,6 +5,7 @@
 var inquirer = require('inquirer');
 var Twitter = require('twitter');
 var spotify = require('spotify');
+var request = require('request');
 var color = require('cli-color');
 
 //============
@@ -32,12 +33,15 @@ inquirer.prompt({
       break;
     case 'spotify-this-song':
       spotifyActions.getUserSongName();
+      break;
+    case 'movie-this':
+      movieActions.getUserMovieName();
   }
 });
 
-//==========
-// API WORK
-//==========
+//=================
+// API/Library work
+//=================
 
 var twitterActions = {
   //grab the data from js keys and save it as an object 
@@ -166,6 +170,62 @@ var spotifyActions = {
     console.log(color.bgMagenta("Preview Url"));
     console.log(color.magenta(previewURL) + '\n');
   }
+};
+
+var movieActions = {
+  "movieName": "Mr. Nobody",
+
+  getUserMovieName: function() {
+    inquirer.prompt({
+      type:"input",
+      message:"What title should I look up?",
+      name: "movieTitle"
+    }).then(function(userData){
+      if(userData.movieTitle !== '') {
+        movieActions.movieName = userData.movieTitle;
+      }
+      movieActions.movieDataRequest();
+    })
+  },
+
+  movieDataRequest: function() {
+    console.log(this.movieName);
+    var queryURL = 'http://www.omdbapi.com/?t=' + this.movieName
+    request(queryURL, function(error, response, body) {
+      if(JSON.parse(body).Response === "False") {
+        console.log(color.red("Sorry, OMDB doesn't have that title on record!"));
+        return;
+      } else {
+        movieActions.displayMovieInfo(JSON.parse(body));
+      }
+    })
+  }, 
+
+  displayMovieInfo: function(movieObject) {
+    var title = movieObject.Title;
+    var year = movieObject.Year;
+    var imdbRat = movieObject.Ratings[0].Value;
+    var country = movieObject.Country;
+    var language = movieObject.Language;
+    var tomatoesRat = movieObject.Ratings[1].Value;
+    var plot = movieObject.Plot;
+    var actors = movieObject.Actors;
+    // var tomatoesURL = movieObject.
+    console.log(color.yellow('\n================   Here\'s the info I have on ' + this.movieName + '!   ================\n\n'));
+
+    console.log(color.bgYellow(title));
+    console.log("Release Year: " + year);
+    console.log("IMDB Rating: " + imdbRat);
+    console.log("Rotten Tomatoes Rating: " + tomatoesRat);
+    console.log("Country: " + country);
+    console.log("Language(s): " + language);
+    console.log("Actors: " + actors);
+    console.log(color.bgYellow("---------- Plot Summary ----------"));
+    console.log(color.yellow(plot) + '\n\n');
+
+  }
+
+
 };
 
 
