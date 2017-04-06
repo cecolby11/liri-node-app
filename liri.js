@@ -6,6 +6,7 @@ var inquirer = require('inquirer');
 var Twitter = require('twitter');
 var spotify = require('spotify');
 var request = require('request');
+var fs = require('fs');
 var color = require('cli-color');
 
 //============
@@ -19,25 +20,44 @@ var color = require('cli-color');
 // do-what-it-says
 var userCommand;
 
-inquirer.prompt({
-  type: 'list',
-  choices: ['my-tweets','spotify-this-song', 'movie-this','do-what-it-says'],
-  message: 'What can I do for you?',
-  name: 'command'
-}).then(function(userData){
-  userCommand = userData.command;
+function getCommandFromUser() {
+  inquirer.prompt({
+    type: 'list',
+    choices: ['my-tweets','spotify-this-song', 'movie-this','do-what-it-says'],
+    message: 'What can I do for you?',
+    name: 'command'
+  }).then(function(userData){
+    userCommand = userData.command;
+    fireActionFromCommand(userCommand);
+  });
+}
 
-  switch(userCommand) {
-    case 'my-tweets':
-      twitterActions.fetchTweets();
-      break;
-    case 'spotify-this-song':
-      spotifyActions.getUserSongName();
-      break;
-    case 'movie-this':
-      movieActions.getUserMovieName();
-  }
-});
+function fireActionFromCommand(command, userInput = null) {
+  switch(command) {
+      case 'my-tweets':
+        twitterActions.fetchTweets();
+        break;
+      case 'spotify-this-song':
+        if(userInput === null) {
+          spotifyActions.getUserSongName();
+        } else { // if reading command from random.txt
+          spotifyActions.songName = userInput;
+          spotifyActions.fetchTrackMatches();
+        }
+        break;
+      case 'movie-this':
+      if(userInput === null) {
+        movieActions.getUserMovieName();
+      } else {
+        movieActions.movieName = userInput;
+        movieActions.movieDataRequest();
+        break;
+      }
+      case 'do-what-it-says': 
+        otherActions.readCommandFromFile();
+        break;
+    }
+}
 
 //=================
 // API/Library work
@@ -129,7 +149,7 @@ var spotifyActions = {
 
     // ask the user which artist they want the info for
     inquirer.prompt({
-      type: "list",
+      type: 'list',
       choices: artistChoices,
       message: 'Please confirm which artist you\'re looking for:',
       name: 'artist'
@@ -146,7 +166,7 @@ var spotifyActions = {
     console.log(color.magentaBright('\n================   Here is the track info you wanted!  ================\n\n'));
 
     //song name
-    console.log(color.bgMagenta("Track Name"));
+    console.log(color.bgMagenta('Track Name'));
     console.log(color.magenta(trackItem.name +'\n'));
 
     //artists 
@@ -157,29 +177,29 @@ var spotifyActions = {
             songArtists += ' & ' + trackItem.artists[j].name;
         }
       }
-    console.log(color.bgMagenta("Track Artist(s)"));
+    console.log(color.bgMagenta('Track Artist(s)'));
     console.log(color.magenta(songArtists + '\n'));
 
     // album
     var album = trackItem.album.name;
-    console.log(color.bgMagenta("Album Name"));
+    console.log(color.bgMagenta('Album Name'));
     console.log(color.magenta(album) + '\n');
 
     // preview url 
     var previewURL = trackItem.preview_url;
-    console.log(color.bgMagenta("Preview Url"));
+    console.log(color.bgMagenta('Preview Url'));
     console.log(color.magenta(previewURL) + '\n');
   }
 };
 
 var movieActions = {
-  "movieName": "Mr. Nobody",
+  'movieName': 'Mr. Nobody',
 
   getUserMovieName: function() {
     inquirer.prompt({
-      type:"input",
-      message:"What title should I look up?",
-      name: "movieTitle"
+      type:'input',
+      message:'What title should I look up?',
+      name: 'movieTitle'
     }).then(function(userData){
       if(userData.movieTitle !== '') {
         movieActions.movieName = userData.movieTitle;
@@ -192,8 +212,8 @@ var movieActions = {
     console.log(this.movieName);
     var queryURL = 'http://www.omdbapi.com/?t=' + this.movieName
     request(queryURL, function(error, response, body) {
-      if(JSON.parse(body).Response === "False") {
-        console.log(color.red("Sorry, OMDB doesn't have that title on record!"));
+      if(JSON.parse(body).Response === 'False') {
+        console.log(color.red('Sorry, OMDB doesn\'t have that title on record!'));
         return;
       } else {
         movieActions.displayMovieInfo(JSON.parse(body));
@@ -214,20 +234,39 @@ var movieActions = {
     console.log(color.yellow('\n================   Here\'s the info I have on ' + this.movieName + '!   ================\n\n'));
 
     console.log(color.bgYellow(title));
-    console.log("Release Year: " + year);
-    console.log("IMDB Rating: " + imdbRat);
-    console.log("Rotten Tomatoes Rating: " + tomatoesRat);
-    console.log("Country: " + country);
-    console.log("Language(s): " + language);
-    console.log("Actors: " + actors);
-    console.log(color.bgYellow("---------- Plot Summary ----------"));
+    console.log('Release Year: ' + year);
+    console.log('IMDB Rating: ' + imdbRat);
+    console.log('Rotten Tomatoes Rating: ' + tomatoesRat);
+    console.log('Country: ' + country);
+    console.log('Language(s): ' + language);
+    console.log('Actors: ' + actors);
+    console.log(color.bgYellow('---------- Plot Summary ----------'));
     console.log(color.yellow(plot) + '\n\n');
 
   }
-
-
 };
 
+var otherActions = {
+
+  readCommandFromFile: function() {
+    fs.readFile('random.txt', 'utf8', function(error, fileData){
+      if(error) {
+        console.log(error);
+        return;
+      } else {
+        var dataArr = fileData.split(',');
+        var command = dataArr[0];
+        var userInput = dataArr[1];
+        fireActionFromCommand(command, userInput);
+      }
+    })
+  }
+};
+
+//============
+// INITIALIZE
+//============
+getCommandFromUser();
 
 
 //SPOTIFY todos: 
