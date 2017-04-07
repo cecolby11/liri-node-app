@@ -5,21 +5,23 @@
 var inquirer = require('inquirer');
 var Twitter = require('twitter');
 var spotify = require('spotify');
-var request = require('request');
+var request = require('request'); // for omdb api call 
 var fs = require('fs');
-var color = require('cli-color');
+var color = require('cli-color'); // for coloring console output to make it easier to read for the user
 
-//============
-// USER INPUT 
-//============
+//====================
+// INTIIAL USER INPUT 
+//====================
 
-// liri.js can take in one of the following commands: 
+/* var to store the user's selected command*/
+var userCommand;
+
+/* this function takes in one of the following commands: 
 // my-tweets
 // spotify-this-song
 // movie-this
 // do-what-it-says
-var userCommand;
-
+using inquirer prompt */
 function getCommandFromUser() {
   inquirer.prompt({
     type: 'list',
@@ -32,6 +34,7 @@ function getCommandFromUser() {
   });
 }
 
+/* this function confirms whether the user would like to enter a new command using an inquirer prompt */
 function checkIfAnotherCommand() {
   inquirer.prompt({
     type: 'confirm',
@@ -46,6 +49,7 @@ function checkIfAnotherCommand() {
   })
 }
 
+/* this function checks which command was entered and triggers the next step given that command */
 function fireActionFromCommand(command, userInput = null) {
   switch(command) {
       case 'my-tweets':
@@ -78,34 +82,29 @@ function fireActionFromCommand(command, userInput = null) {
 //=================
 
 var twitterActions = {
-  //grab the data from js keys and save it as an object 
+  //grabs the data from js keys and save it as an object 
   'keys': require('./keys.js').twitterKeys,
 
+  /* this function uses the twitter 'get' method to request the last 20 tweets of the authenticated user */
   fetchTweets: function() {
     // pass the keys object 
     var client = new Twitter(this.keys);
-
-    //request last 20 tweets of authenticated user 
     client.get('statuses/user_timeline', function(error, tweets, response){
       if(error) {
         console.log(error);
         return;
       } else {
         // tweets--> array of tweets 
-        // show tweet text and creation time 
         twitterActions.displayTweets(tweets);
       }
     });
   }, 
 
+  /* This function console logs tweet text and creation time for each tweet in an array. It also logs this action to the liri_history.txt file */ 
   displayTweets: function(tweetsArray) {
     var userName = tweetsArray[0].user.name;
     var tweetHeader = '\n =================  Hi '+userName+'! Here are your last 20weets!  ================\n';
-
-    // write header to console
     console.log(color.bgCyan(tweetHeader));
-
-    // write tweets to console and logfile 
     for(var i = 0; i < tweetsArray.length; i++){
       var timestamp = tweetsArray[i].created_at;
       var tweetText = tweetsArray[i].text;
@@ -117,22 +116,22 @@ var twitterActions = {
           }
       });
     }
-
-    // if not 20, display message to user
+    // if less than 20 available, display that as an update to user
     if (tweetsArray.length < 20) {
       console.log(color.red('Looks like you don\'t have 20 tweets yet! Better get to work!\n\n'));
     }
 
-    // get new command from user? 
     checkIfAnotherCommand();
   }
 };
 
 var spotifyActions = {
-  //default: the sign, by ace of bass
+  //default song to search: the sign, by ace of bass
   'songName': 'The Sign',
+  // to limit the number of artist results displayed, query is limited to 5 and offset is incremented by 5s should the user want to look through more results. 
   'offset': 0,
 
+  /* this function obtains a song name to search for from the user, using an inquirer prompt */ 
   getUserSongName: function() {
     inquirer.prompt({
       type: 'input',
@@ -146,6 +145,7 @@ var spotifyActions = {
     });
   },
 
+   /* this function uses the spotify library's 'get' method to query spotify for the user's song-name data*/ 
   fetchTrackMatches: function() {
     var endpointURL = 'https://api.spotify.com/v1/search?';
     var queryURL = endpointURL+'q='+spotifyActions.songName+'&type=track&offset='+this.offset+'&limit=5'
@@ -155,7 +155,7 @@ var spotifyActions = {
       } 
       else {
         var resultsArr = data.tracks.items;
-        // if no results 
+        // if no results come back
         if (resultsArr.length === 0) {
           console.log('Sorry, Spotify doesn\'t have any results for ' + color.redBright(spotifyActions.songName) + '!\n');
           return;
@@ -165,6 +165,7 @@ var spotifyActions = {
     });
   }, 
 
+   /* this function presents the query results to the user by their artist(s) and the user can select their intended artist or see more, using an inquirer prompt */ 
   whichArtist: function(resultsArr) {
     var artistChoices = [];
     for(var i = 0; i<resultsArr.length; i++) {
@@ -176,11 +177,10 @@ var spotifyActions = {
             songArtists += ' & ' + song.artists[j].name;
         }
       }
-      //create array of the top 5 artist options
+      //create array of the 5 artist options
       artistChoices.push(songArtists);
     } 
     artistChoices.push('Show More Artists');
-
     // ask the user which artist they want the info for
     inquirer.prompt({
       type: 'list',
@@ -188,6 +188,7 @@ var spotifyActions = {
       message: 'Please confirm which artist you\'re looking for:',
       name: 'artist'
     }).then(function(userData){
+      // if user selects show more artists, query is done again with +5 offset 
       if(userData.artist === 'Show More Artists') {
         if(spotifyActions.offset < 25) {
           spotifyActions.offset += 5;
@@ -197,7 +198,9 @@ var spotifyActions = {
           console.log(color.red('Back to beginning of results'));
         }
         spotifyActions.fetchTrackMatches();
-      } else {
+      } 
+      // if user selects one of the 5 artists shown,
+      else {
         // get index of that artist in the choices presented
         var index = artistChoices.indexOf(userData.artist);
         // index corresponds to their index in the items array 
@@ -206,16 +209,14 @@ var spotifyActions = {
     });
   }, 
 
+   /* this function console logs the song name/artists/album/preview_link and logs the search to the liri_history.txt file */ 
   displayTrackInfo: function(trackItem) {
     // write header to console and logfile
     var trackHeader = '\n ==============  Here is the track info you wanted!  ============== \n'
     console.log(color.bgMagentaBright(trackHeader));
-
-    //write song info to console
     //song name
     console.log(color.bgMagenta('Track Name'));
     console.log(color.magenta(trackItem.name +'\n'));
-
     //artists 
     var songArtists = '';
       songArtists = trackItem.artists[0].name;
@@ -226,32 +227,31 @@ var spotifyActions = {
       }
     console.log(color.bgMagenta('Track Artist(s)'));
     console.log(color.magenta(songArtists + '\n'));
-
     // album
     var album = trackItem.album.name;
     console.log(color.bgMagenta('Album Name'));
     console.log(color.magenta(album) + '\n');
-
     // preview url 
     var previewURL = trackItem.preview_url;
     console.log(color.bgMagenta('Preview Url'));
     console.log(color.magenta(previewURL) + '\n');
 
-    // write song info to logfile
+    // write search to logfile
     fs.appendFile('liri_history.txt', 
       `\nYou searched for: ${trackItem.name}, from the album ${trackItem.album.name}\n. View it here: ${trackItem.preview_url}
       `, function(error){
         if(error){console.log(error);}
-      })
-    // get new command from user?
+    });
+
     checkIfAnotherCommand();
   }
 };
 
 var movieActions = {
-  //default: Mr. Nobody
+  //default movie to search: Mr. Nobody
   'movieName': 'Mr. Nobody',
 
+   /* this function obtains a movie name to search for from the user, using an inquirer prompt */ 
   getUserMovieName: function() {
     inquirer.prompt({
       type:'input',
@@ -265,6 +265,7 @@ var movieActions = {
     })
   },
 
+   /* this function builds a queryURL from the user's movie name and uses the request library's 'request' method to query the omdbapi for that movie's data */ 
   movieDataRequest: function() {
     var queryURL = 'http://www.omdbapi.com/?t=' + this.movieName
     request(queryURL, function(error, response, body) {
@@ -277,6 +278,7 @@ var movieActions = {
     })
   }, 
 
+   /* this function console logs the selected movie's information and logs the search in the liri_history.txt file. */ 
   displayMovieInfo: function(movieObject) {
     console.log(movieObject.Ratings);
     var title = movieObject.Title;
@@ -287,9 +289,8 @@ var movieActions = {
     var tomatoesRat = movieObject.Ratings[1].Value;
     var plot = movieObject.Plot;
     var actors = movieObject.Actors;
-    // var tomatoesURL = movieObject.
+    // tomatoesURL not in the data 
     console.log(color.yellow('\n================   Here\'s the info I have on ' + this.movieName + '!   ================\n\n'));
-
     console.log(color.bgYellow(title));
     console.log('Release Year: ' + year);
     console.log('IMDB Rating: ' + imdbRat);
@@ -300,18 +301,18 @@ var movieActions = {
     console.log(color.bgYellow('---------- Plot Summary ----------'));
     console.log(color.yellow(plot) + '\n\n');
 
-    // append to logfile
+    // append search to logfile
     fs.appendFile('liri_history.txt',`\n\nYou searched for ${title}(${year}). It got ${imdbRat} on imdb and here's the plot summary: ${plot}`, function(error){
       if(error){console.log(error);}
-    })
+    });
 
-    // get new command from user?
     checkIfAnotherCommand();
   }
 };
 
 var otherActions = {
 
+   /* this function obtains a command by reading the file random.txt, and if spotify or movie search, it submits the next text in the file after the command to the fireAction function as the song or movie to search for */ 
   readCommandFromFile: function() {
     fs.readFile('random.txt', 'utf8', function(error, fileData){
       if(error) {
@@ -331,12 +332,3 @@ var otherActions = {
 // INITIALIZE
 //============
 getCommandFromUser();
-
-
-//SPOTIFY todos: 
-// add 'other' option where user can type in an alternate artist which will be added to the query
-
-//general todos: 
-// movie section
-// do what it says sectino 
-// once done with a query, recall the initial prompt functions so user can do something else 
