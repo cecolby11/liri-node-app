@@ -46,13 +46,13 @@ function fireActionFromCommand(command, userInput = null) {
         }
         break;
       case 'movie-this':
-      if(userInput === null) {
-        movieActions.getUserMovieName();
-      } else {
-        movieActions.movieName = userInput;
-        movieActions.movieDataRequest();
+        if(userInput === null) {
+          movieActions.getUserMovieName();
+        } else {
+          movieActions.movieName = userInput;
+          movieActions.movieDataRequest();
+        }
         break;
-      }
       case 'do-what-it-says': 
         otherActions.readCommandFromFile();
         break;
@@ -99,6 +99,7 @@ var twitterActions = {
 var spotifyActions = {
   //default: the sign, by ace of bass
   'songName': 'The Sign',
+  'offset': 0,
 
   getUserSongName: function() {
     inquirer.prompt({
@@ -115,7 +116,8 @@ var spotifyActions = {
 
   fetchTrackMatches: function() {
     var endpointURL = 'https://api.spotify.com/v1/search?';
-    var queryURL = endpointURL + 'q=' +spotifyActions.songName + '&type=track&limit=5'
+    var queryURL = endpointURL+'q='+spotifyActions.songName+'&type=track&offset='+this.offset+'&limit=5'
+    console.log(queryURL);
     spotify.get(queryURL, function(error, data) {
       if(error){
         console.log(error);
@@ -146,6 +148,7 @@ var spotifyActions = {
       //create array of the top 5 artist options
       artistChoices.push(songArtists);
     } 
+    artistChoices.push("Show More Artists");
 
     // ask the user which artist they want the info for
     inquirer.prompt({
@@ -154,11 +157,16 @@ var spotifyActions = {
       message: 'Please confirm which artist you\'re looking for:',
       name: 'artist'
     }).then(function(userData){
-      // get index of that artist in the choices presented
-      var index = artistChoices.indexOf(userData.artist);
-      // index corresponds to their index in the items array 
-      spotifyActions.displayTrackInfo(resultsArr[index]);
-      // 
+      if(userData.artist === "Show More Artists") {
+        spotifyActions.offset += 5;
+        console.log(spotifyActions.offset);
+        spotifyActions.fetchTrackMatches();
+      } else {
+        // get index of that artist in the choices presented
+        var index = artistChoices.indexOf(userData.artist);
+        // index corresponds to their index in the items array 
+        spotifyActions.displayTrackInfo(resultsArr[index]);
+      }
     });
   }, 
 
