@@ -41,7 +41,7 @@ function checkIfAnotherCommand() {
     if(userData.hasAnotherQuestion === true) {
       getCommandFromUser();
     } else {
-      console.log(color.bgGreen("\n\nGoodbye!\n"));
+      console.log(color.bgGreen('\n\nGoodbye!\n'));
     }
   })
 }
@@ -100,18 +100,30 @@ var twitterActions = {
 
   displayTweets: function(tweetsArray) {
     var userName = tweetsArray[0].user.name;
-    console.log(color.cyan('\n================   Hi '+userName+'! Here are your last 20weets!  ================\n\n'));
+    var tweetHeader = '\n =================  Hi '+userName+'! Here are your last 20weets!  ================\n';
+
+    // write header to console
+    console.log(color.bgCyan(tweetHeader));
+
+    // write tweets to console and logfile 
     for(var i = 0; i < tweetsArray.length; i++){
       var timestamp = tweetsArray[i].created_at;
       var tweetText = tweetsArray[i].text;
       console.log(color.bgCyan(timestamp));
       console.log(color.cyan(tweetText+'\n'));
-    }
-    if (tweetsArray.length < 20) {
-      console.log(color.red("Looks like you don't have 20 tweets yet! Better get to work!\n\n"));
+      fs.appendFile('liri_history.txt', '\nYou searched for recent tweets. Here\'s one: ' + timestamp + ': ' + tweetText + '\n\n', function(error) {
+          if(error) {
+            console.log(error);
+          }
+      });
     }
 
-    // get new command from user! 
+    // if not 20, display message to user
+    if (tweetsArray.length < 20) {
+      console.log(color.red('Looks like you don\'t have 20 tweets yet! Better get to work!\n\n'));
+    }
+
+    // get new command from user? 
     checkIfAnotherCommand();
   }
 };
@@ -167,7 +179,7 @@ var spotifyActions = {
       //create array of the top 5 artist options
       artistChoices.push(songArtists);
     } 
-    artistChoices.push("Show More Artists");
+    artistChoices.push('Show More Artists');
 
     // ask the user which artist they want the info for
     inquirer.prompt({
@@ -176,7 +188,7 @@ var spotifyActions = {
       message: 'Please confirm which artist you\'re looking for:',
       name: 'artist'
     }).then(function(userData){
-      if(userData.artist === "Show More Artists") {
+      if(userData.artist === 'Show More Artists') {
         if(spotifyActions.offset < 25) {
           spotifyActions.offset += 5;
         } else {
@@ -195,8 +207,11 @@ var spotifyActions = {
   }, 
 
   displayTrackInfo: function(trackItem) {
-    console.log(color.magentaBright('\n================   Here is the track info you wanted!  ================\n\n'));
+    // write header to console and logfile
+    var trackHeader = '\n ==============  Here is the track info you wanted!  ============== \n'
+    console.log(color.bgMagentaBright(trackHeader));
 
+    //write song info to console
     //song name
     console.log(color.bgMagenta('Track Name'));
     console.log(color.magenta(trackItem.name +'\n'));
@@ -222,12 +237,19 @@ var spotifyActions = {
     console.log(color.bgMagenta('Preview Url'));
     console.log(color.magenta(previewURL) + '\n');
 
-    // get new command from user
+    // write song info to logfile
+    fs.appendFile('liri_history.txt', 
+      `\nYou searched for: ${trackItem.name}, from the album ${trackItem.album.name}\n. View it here: ${trackItem.preview_url}
+      `, function(error){
+        if(error){console.log(error);}
+      })
+    // get new command from user?
     checkIfAnotherCommand();
   }
 };
 
 var movieActions = {
+  //default: Mr. Nobody
   'movieName': 'Mr. Nobody',
 
   getUserMovieName: function() {
@@ -277,6 +299,11 @@ var movieActions = {
     console.log('Actors: ' + actors);
     console.log(color.bgYellow('---------- Plot Summary ----------'));
     console.log(color.yellow(plot) + '\n\n');
+
+    // append to logfile
+    fs.appendFile('liri_history.txt',`\n\nYou searched for ${title}(${year}). It got ${imdbRat} on imdb and here's the plot summary: ${plot}`, function(error){
+      if(error){console.log(error);}
+    })
 
     // get new command from user?
     checkIfAnotherCommand();
