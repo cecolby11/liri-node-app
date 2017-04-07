@@ -32,6 +32,20 @@ function getCommandFromUser() {
   });
 }
 
+function checkIfAnotherCommand() {
+  inquirer.prompt({
+    type: 'confirm',
+    message: 'Would you like to ask me anything else?',
+    name: 'hasAnotherQuestion'
+  }).then(function(userData){
+    if(userData.hasAnotherQuestion === true) {
+      getCommandFromUser();
+    } else {
+      console.log(color.bgGreen("\n\nGoodbye!\n"));
+    }
+  })
+}
+
 function fireActionFromCommand(command, userInput = null) {
   switch(command) {
       case 'my-tweets':
@@ -93,6 +107,12 @@ var twitterActions = {
       console.log(color.bgCyan(timestamp));
       console.log(color.cyan(tweetText+'\n'));
     }
+    if (tweetsArray.length < 20) {
+      console.log(color.red("Looks like you don't have 20 tweets yet! Better get to work!\n\n"));
+    }
+
+    // get new command from user! 
+    checkIfAnotherCommand();
   }
 };
 
@@ -117,7 +137,6 @@ var spotifyActions = {
   fetchTrackMatches: function() {
     var endpointURL = 'https://api.spotify.com/v1/search?';
     var queryURL = endpointURL+'q='+spotifyActions.songName+'&type=track&offset='+this.offset+'&limit=5'
-    console.log(queryURL);
     spotify.get(queryURL, function(error, data) {
       if(error){
         console.log(error);
@@ -158,8 +177,13 @@ var spotifyActions = {
       name: 'artist'
     }).then(function(userData){
       if(userData.artist === "Show More Artists") {
-        spotifyActions.offset += 5;
-        console.log(spotifyActions.offset);
+        if(spotifyActions.offset < 25) {
+          spotifyActions.offset += 5;
+        } else {
+          // cycle back through those first 20 again. 
+          spotifyActions.offset = 0;
+          console.log(color.red('Back to beginning of results'));
+        }
         spotifyActions.fetchTrackMatches();
       } else {
         // get index of that artist in the choices presented
@@ -197,6 +221,9 @@ var spotifyActions = {
     var previewURL = trackItem.preview_url;
     console.log(color.bgMagenta('Preview Url'));
     console.log(color.magenta(previewURL) + '\n');
+
+    // get new command from user
+    checkIfAnotherCommand();
   }
 };
 
@@ -217,7 +244,6 @@ var movieActions = {
   },
 
   movieDataRequest: function() {
-    console.log(this.movieName);
     var queryURL = 'http://www.omdbapi.com/?t=' + this.movieName
     request(queryURL, function(error, response, body) {
       if(JSON.parse(body).Response === 'False') {
@@ -230,9 +256,10 @@ var movieActions = {
   }, 
 
   displayMovieInfo: function(movieObject) {
+    console.log(movieObject.Ratings);
     var title = movieObject.Title;
     var year = movieObject.Year;
-    var imdbRat = movieObject.Ratings[0].Value;
+    var imdbRat = movieObject.imdbRating;
     var country = movieObject.Country;
     var language = movieObject.Language;
     var tomatoesRat = movieObject.Ratings[1].Value;
@@ -251,6 +278,8 @@ var movieActions = {
     console.log(color.bgYellow('---------- Plot Summary ----------'));
     console.log(color.yellow(plot) + '\n\n');
 
+    // get new command from user?
+    checkIfAnotherCommand();
   }
 };
 
@@ -263,8 +292,8 @@ var otherActions = {
         return;
       } else {
         var dataArr = fileData.split(',');
-        var command = dataArr[0];
-        var userInput = dataArr[1];
+        var command = dataArr[0].trim();
+        var userInput = dataArr[1].trim();
         fireActionFromCommand(command, userInput);
       }
     })
